@@ -1,5 +1,6 @@
 'use strict'
 require('colors');
+const crypto = require('crypto');
 const FlexEther = require('flex-ether');
 const FlexContract = require('flex-contract');
 const process = require('process');
@@ -12,10 +13,12 @@ const AbiEncoder = require('web3-eth-abi');
 const SECRETS = require('../secrets.json');
 const ETH = new FlexEther({ providerURI: process.env.NODE_RPC, network: process.env.NETWORK });
 const GAS_PRICE = new BigNumber('1e9').times(process.env.GAS_PRICE || SECRETS.gasPrice || 1).toString(10);
+const GAS_LIMIT = process.env.GAS_LIMIT || SECRETS.gasLimit;
 const SEND_OPTS = { key: SECRETS.senderKey, gasPrice: GAS_PRICE, gas: SECRETS.gasLimit };
 const { NETWORK, SIMULATED } = process.env;
 const VERIFY_QUEUE = [];
-const NULL_ADDRESS = ethjs.bufferToHex(Buffer.alloc(32));
+const NULL_ADDRESS = ethjs.bufferToHex(Buffer.alloc(20));
+const RANDOM_ADDRESS = ethjs.bufferToHex(crypto.randomBytes(20));
 const SENDER = ethjs.toChecksumAddress(
     ethjs.bufferToHex(
         ethjs.privateToAddress(
@@ -28,6 +31,7 @@ async function deployEcosystemContract(name, ...cargs) {
     const contract = createEcosystemContract(name);
     const { contractAddress: address } = await contract.new(...cargs).send(SEND_OPTS);
     addToVerifyQueue(name, address, cargs);
+    console.log(`Deployed contract ${name.green}: ${address.bold}`);
     return { address, contract, cargs };
 }
 
@@ -36,7 +40,7 @@ async function deployTransformer(deployer, transformerName, ...cargs) {
         .new(...cargs).encode();
     const receipt = await deployer.deploy(deployData).send(SEND_OPTS);
     const deployedAddress = receipt.findEvent('Deployed').args.deployedAddress;
-    console.log(`Deployed transformer ${transformerName}: ${deployedAddress.bold}`);
+    console.log(`Deployed transformer ${transformerName.green}: ${deployedAddress.bold}`);
     addToVerifyQueue(`zero-ex/${transformerName}`, deployedAddress, cargs);
     return deployedAddress;
 }
@@ -49,6 +53,7 @@ function createEcosystemContract(name, address) {
             address,
             bytecode: artifact.compilerOutput.evm.bytecode.object,
             eth: ETH,
+            key: SECRETS.senderKey,
         },
     );
 }
@@ -133,11 +138,32 @@ function addToVerifyQueue(name, address, cargs) {
     VERIFY_QUEUE.push({ name, address, cargs });
 }
 
-async function verifyQueuedSources() {
+async function verifyQueuedSources(delay = 60000) {
+    if (SIMULATED) {
+        return;
+    }
+    if (delay) {
+        await wait(delay);
+    }
     for (const q of VERIFY_QUEUE) {
         await verifySource(q.name, q.address, q.cargs);
     }
     VERIFY_QUEUE.splice(0, VERIFY_QUEUE.length);
+}
+
+async function enterSenderContext(cb) {
+    if (SIMULATED) {
+        await ETH.transfer(SENDER, new BigNumber('10e18').toString(10));
+    }
+    const startingBalance = await ETH.getBalance(SENDER);
+    const ctx = {
+        chainId: await ETH.getChainId(),
+        sender: SENDER,
+    };
+    await cb(ctx);
+    const cost = new BigNumber(startingBalance).minus(await ETH.getBalance(SENDER));
+    console.log(`total sender (${SENDER.gray}) cost:`, cost.div('1e18').toString(10).red);
+    return cost;
 }
 
 module.exports = {
@@ -159,4 +185,5 @@ module.exports = {
     deployEcosystemContract,
     deployTransformer,
     encodeGovernorCalls,
+    enterSenderContext,
 };
