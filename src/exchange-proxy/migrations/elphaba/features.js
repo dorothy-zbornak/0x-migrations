@@ -1,6 +1,7 @@
 'use strict'
 const _ = require('lodash');
 const assert = require('assert');
+const process = require('process');
 const {
     addToVerifyQueue,
     createEcosystemContract,
@@ -16,21 +17,23 @@ const {
     verifyQueuedSources,
 } = require('../../../util');
 
-const GOVERNOR_AUTHORITIES = [
-    '0x5ee2a00f8f01d099451844af7f894f26a57fcbf2',
-    '0x257619b7155d247e43c8b6d90c8c17278ae481f0'
+const DEPRECATED_FNS = [
+    '0x29b02306',
 ];
 
 (async () => {
     await enterSenderContext(async ({chainId}) => {
         const chainAddresses = ADDRESSES_BY_CHAIN[chainId];
-        // Deploy the SignatureValidator feature.
-        const { contract: signatureValidatorFeature } = await deployEcosystemContract(
-            'zero-ex/SignatureValidatorFeature',
+        // Deploy the Uniswap feature.
+        const { contract: uniswapFeature } = await deployEcosystemContract(
+            'zero-ex/UniswapFeature',
+            chainAddresses.weth,
+            chainAddresses.allowanceTarget,
         );
-        // Deploy the TransformERC20 feature.
-        const { contract: transformERC20Feature } = await deployEcosystemContract(
-            'zero-ex/TransformERC20Feature',
+        // Deploy the MetaTransactions feature.
+        const { contract: mtxFeature } = await deployEcosystemContract(
+            'zero-ex/MetaTransactionsFeature',
+            chainAddresses.exchangeProxy,
         );
         const governor = createEcosystemContract(
             'multisig/ZeroExGovernor',
@@ -42,39 +45,48 @@ const GOVERNOR_AUTHORITIES = [
         );
         // Create the governor call.
         const governorCallData = encodeGovernorCalls([
-            // Migrate SignatureValidatorFeature
+            // Migrate Uniswap
             {
                 to: zeroEx.address,
                 value: 0,
                 data: await zeroEx
                     .migrate(
-                        signatureValidatorFeature.address,
-                        await signatureValidatorFeature.migrate().encode(),
+                        uniswapFeature.address,
+                        await uniswapFeature.migrate().encode(),
                         governor.address,
                     ).encode(),
             },
-            // Migrate TransformERC20Feature
+            // Migrate MetaTransactions
             {
                 to: zeroEx.address,
                 value: 0,
                 data: await zeroEx
                     .migrate(
-                        transformERC20Feature.address,
-                        await transformERC20Feature
-                            .migrate(chainAddresses.transformerDeployer)
-                            .encode(),
+                        mtxFeature.address,
+                        await mtxFeature.migrate().encode(),
                         governor.address,
                     ).encode(),
             },
+            // Deregister the old `_transformERC20()` function.
+            ...await Promise.all(DEPRECATED_FNS.map(async selector => ({
+                    to: zeroEx.address,
+                    value: 0,
+                    data: await zeroEx
+                        .extend('0x29b02306', NULL_ADDRESS)
+                        .encode(),
+                }),
+            )),
         ]);
         console.info(`governor migrate calldata: ${governorCallData.bold.green}`);
         if (SIMULATED) {
+            const signers = await governor.getOwners().call();
             // Migrate using unlocked accounts.
-            const callOpts = { ...SEND_OPTS, from: GOVERNOR_AUTHORITIES[0], key: undefined };
+            const callOpts = { ...SEND_OPTS, from: signers[0], key: undefined };
             const submitCall = governor.submitTransaction(governor.address, 0, governorCallData);
             const txId = await submitCall.call(callOpts);
+            await submitCall.send(callOpts);
             console.info(`submitted governor txId: ${txId}`);
-            await governor.confirmTransaction(txId).send({ ...callOpts, from: GOVERNOR_AUTHORITIES[1] });
+            await governor.confirmTransaction(txId).send({ ...callOpts, from: signers[1] });
             const r = await governor.executeTransaction(txId).send(callOpts);
             // Ensure migrations were successful.
             const migratedEvents = r.events.filter(e => e.name === 'Migrated');
@@ -84,11 +96,15 @@ const GOVERNOR_AUTHORITIES = [
             const owner = await zeroEx.owner().call();
             assert(owner.toLowerCase() === governor.address.toLowerCase());
             console.log('☑ Owner is still governor'.bold.green);
-            // Ensure the flashwallet has not changed.
-            assert((await zeroEx.getTransformWallet().call()).toLowerCase() == chainAddresses.flashWallet);
-            console.log('☑ Flashwallet has not changed'.bold.green);
+            // Ensure all deprecated functions are deregistered.
+            for (const selector of DEPRECATED_FNS) {
+                const impl = await zeroEx.getFunctionImplementation(selector).call();
+                assert.equal(impl, NULL_ADDRESS);
+            }
+            console.log('☑ Deprecated functions deregistered'.bold.green);
         }
     });
     await verifyQueuedSources();
-
-})();
+})()
+    .catch(err => { console.error(err); process.exit(1) })
+    .then(() => process.exit());

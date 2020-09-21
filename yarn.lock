@@ -925,21 +925,21 @@ finalhandler@~1.1.2:
     statuses "~1.5.0"
     unpipe "~1.0.0"
 
-flex-contract@^2.2.2:
-  version "2.2.2"
-  resolved "https://registry.yarnpkg.com/flex-contract/-/flex-contract-2.2.2.tgz#435bf1fa2f3856a50b8158e1c2e215f65e758d33"
-  integrity sha512-+NkYkR0qVKqTb/4wZ6oi+hW8eqZmapNMmXN0umA12gTZSaGpDJRkE4rH500WxVZrgDR/TZuo4iHaltPySi6UQQ==
+flex-contract@^2.2.4:
+  version "2.2.4"
+  resolved "https://registry.yarnpkg.com/flex-contract/-/flex-contract-2.2.4.tgz#9005d921bdbd743bdc7b9f5957fc91bc98b58e6e"
+  integrity sha512-wRItHGW2XGTjHlXqn9VIJKvXETDo/e1p9RaJNwri/2blD3pxwpj7ouTNL3r+XTztjyFxJBkaWZnNdrjk8V6m5w==
   dependencies:
     bignumber.js "^9.0.0"
     ethereumjs-util "^6.2.0"
-    flex-ether "^1.7.0"
+    flex-ether "^1.7.2"
     lodash "^4.17.15"
     web3-eth-abi "^1.2.4"
 
-flex-ether@^1.7.0:
-  version "1.7.1"
-  resolved "https://registry.yarnpkg.com/flex-ether/-/flex-ether-1.7.1.tgz#354424c182d8f4ad04839c5324bce69360e76004"
-  integrity sha512-NiQ0l3C/+tc0DckYpKajmIaGWG2hJL2ApP5lfKBSagAS6rcDu4ezc+aAuBGoTL8HzuEnBPEngipefEzfFDLYKQ==
+flex-ether@^1.7.2:
+  version "1.7.2"
+  resolved "https://registry.yarnpkg.com/flex-ether/-/flex-ether-1.7.2.tgz#0ac825d2cb947bcbb9ddbaa533cc46086fd48149"
+  integrity sha512-vdLZlID9V8Yh0P2SCfGsBiciazUAlaFStE3j7e/kxHt2SStdh0RYpD9ldcN7Jo9sUHxwNvzomUlmejn7lmXkbw==
   dependencies:
     bignumber.js "^9.0.0"
     create-web3-provider "^1.6.1"

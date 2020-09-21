@@ -9,8 +9,9 @@ const fetch = require('node-fetch');
 const BigNumber = require('bignumber.js');
 const { URLSearchParams } = require('url');
 const AbiEncoder = require('web3-eth-abi');
-
 const SECRETS = require('../secrets.json');
+
+const ADDRESSES_BY_CHAIN = require('../addresses.json');
 const ETH = new FlexEther({ providerURI: process.env.NODE_RPC, network: process.env.NETWORK });
 const GAS_PRICE = new BigNumber('1e9').times(process.env.GAS_PRICE || SECRETS.gasPrice || 1).toString(10);
 const GAS_LIMIT = process.env.GAS_LIMIT || SECRETS.gasLimit;
@@ -123,7 +124,6 @@ async function verifySource(name, address, cargs=[]) {
         throw new Error(`Verification failed: ${result.message}: ${result.result}`);
     }
     console.log(`Successfully verified source code for ${name.bold} on ${NETWORK || 'mainnet'} at ${address.green.bold} (ref: ${result.result})!`);
-    await wait(10000);
 }
 
 function findContractPathSpec(inputSources, name) {
@@ -147,6 +147,9 @@ async function verifyQueuedSources(delay = 60000) {
     }
     for (const q of VERIFY_QUEUE) {
         await verifySource(q.name, q.address, q.cargs);
+        if (q !== VERIFY_QUEUE[VERIFY_QUEUE.length - 1]) {
+            await wait(10000);
+        }
     }
     VERIFY_QUEUE.splice(0, VERIFY_QUEUE.length);
 }
@@ -175,6 +178,7 @@ module.exports = {
     SIMULATED,
     GAS_PRICE,
     NULL_ADDRESS,
+    ADDRESSES_BY_CHAIN,
     verifySource,
     verifyQueuedSources,
     addToVerifyQueue,
