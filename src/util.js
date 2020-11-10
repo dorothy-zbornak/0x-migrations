@@ -4,12 +4,17 @@ const crypto = require('crypto');
 const FlexEther = require('flex-ether');
 const FlexContract = require('flex-contract');
 const process = require('process');
+const prompt = require('prompt');
 const ethjs = require('ethereumjs-util');
 const fetch = require('node-fetch');
 const BigNumber = require('bignumber.js');
 const { URLSearchParams } = require('url');
 const AbiEncoder = require('web3-eth-abi');
 const SECRETS = require('../secrets.json');
+
+prompt.get = require('util').promisify(prompt.get);
+prompt.message = '';
+prompt.start();
 
 const ADDRESSES_BY_CHAIN = require('../addresses.json');
 const ETH = new FlexEther({ providerURI: process.env.NODE_RPC, network: process.env.NETWORK });
@@ -155,6 +160,14 @@ async function verifyQueuedSources(delay = 60000) {
 }
 
 async function enterSenderContext(cb) {
+    const { answer } = await prompt.get({
+        name: 'answer',
+        message: `This will execute the migration from the deployer ${SENDER.bold} on network ${(NETWORK || 'mainnet').bold}. Ready? (y/n)`
+    });
+    if (!['y', 'yes'].includes(answer.toLowerCase())) {
+        throw new Error('User did not confirm action');
+    }
+
     if (SIMULATED) {
         await ETH.transfer(SENDER, new BigNumber('10e18').toString(10));
     }
