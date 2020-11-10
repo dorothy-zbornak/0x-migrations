@@ -95,7 +95,7 @@ async function verifySource(name, address, cargs=[]) {
     const contract = createEcosystemContract(name);
     const compilerInput = getEcosystemInputArtifact(name);
     const artifact = getEcosystemArtifact(name);
-    const apiNetworkPrefix = (!NETWORK || NETWORK === 'main') ? 'api' : `api-${NETWORK}`;
+    const apiNetworkPrefix = (!NETWORK || ['main', 'mainnet'].includes(NETWORK)) ? 'api' : `api-${NETWORK}`;
     const params = new URLSearchParams();
     const cargData = (await contract.new(...cargs).encode()).slice(contract.bytecode.length);
     params.set('apikey', SECRETS.etherscanKey);
