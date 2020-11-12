@@ -10,7 +10,6 @@ const {
     enterSenderContext,
     ETH,
     NULL_ADDRESS,
-    SEND_OPTS,
     SIMULATED,
     ADDRESSES_BY_CHAIN,
     verifyQueuedSources,
@@ -22,14 +21,14 @@ const GOVERNOR_AUTHORITIES = [
 ];
 
 (async () => {
-    await enterSenderContext(async ({chainId}) => {
+    await enterSenderContext(async ({chainId, sendOpts}) => {
         const chainAddresses = ADDRESSES_BY_CHAIN[chainId];
         // Deploy the SignatureValidator feature.
-        const { contract: signatureValidatorFeature } = await deployEcosystemContract(
+        const signatureValidatorFeature = await deployEcosystemContract(
             'zero-ex/SignatureValidatorFeature',
         );
         // Deploy the TransformERC20 feature.
-        const { contract: transformERC20Feature } = await deployEcosystemContract(
+        const transformERC20Feature = await deployEcosystemContract(
             'zero-ex/TransformERC20Feature',
         );
         const governor = createEcosystemContract(
@@ -70,7 +69,7 @@ const GOVERNOR_AUTHORITIES = [
         console.info(`governor migrate calldata: ${governorCallData.bold.green}`);
         if (SIMULATED) {
             // Migrate using unlocked accounts.
-            const callOpts = { ...SEND_OPTS, from: GOVERNOR_AUTHORITIES[0], key: undefined };
+            const callOpts = { ...sendOpts, from: GOVERNOR_AUTHORITIES[0], key: undefined };
             const submitCall = governor.submitTransaction(governor.address, 0, governorCallData);
             const txId = await submitCall.call(callOpts);
             console.info(`submitted governor txId: ${txId}`);

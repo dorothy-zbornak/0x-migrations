@@ -9,7 +9,6 @@ const {
     enterSenderContext,
     verifyQueuedSources,
     SIMULATED,
-    SEND_OPTS,
 } = require('../../../util');
 
 const ADDRESSES_BY_CHAIN = {
@@ -36,7 +35,7 @@ const ADDRESSES_BY_CHAIN = {
 };
 
 (async () => {
-    await enterSenderContext(async ({chainId}) => {
+    await enterSenderContext(async ({chainId, sendOpts}) => {
         const chainAddresses = ADDRESSES_BY_CHAIN[chainId];
         const governor = createEcosystemContract(
             'multisig/ZeroExGovernor',
@@ -55,16 +54,16 @@ const ADDRESSES_BY_CHAIN = {
         const flashWalletAddress = await zeroEx.getTransformWallet().call();
 
         // Deploy the LiquidityProviderFeature feature.
-        const { contract: liquidityProviderFeature } = await deployEcosystemContract(
+        const liquidityProviderFeature = await deployEcosystemContract(
             'zero-ex/LiquidityProviderFeature',
             zeroEx.address,
         );
         // Deploy the TransformERC20 feature.
-        const { contract: transformERC20Feature } = await deployEcosystemContract(
+        const transformERC20Feature = await deployEcosystemContract(
             'zero-ex/TransformERC20Feature',
         );
         // Deploy the UniswapFeature feature.
-        const { contract: uniswapFeature } = await deployEcosystemContract(
+        const uniswapFeature = await deployEcosystemContract(
             'zero-ex/UniswapFeature',
             chainAddresses.weth,
             allowanceTargetAddress,
@@ -118,7 +117,7 @@ const ADDRESSES_BY_CHAIN = {
             // Get the governor authorities.
             const authorities = await governor.getOwners().call();
             // Migrate using unlocked accounts.
-            const callOpts = { ...SEND_OPTS, from: authorities[0], key: undefined };
+            const callOpts = { ...sendOpts, from: authorities[0], key: undefined };
             const submitCall = governor.submitTransaction(governor.address, 0, governorCallData);
             const txId = await submitCall.call(callOpts);
             await submitCall.send(callOpts);
