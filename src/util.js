@@ -38,7 +38,7 @@ async function deployEcosystemContract(name, ...cargs) {
     const { contractAddress: address } = await contract.new(...cargs).send(SEND_OPTS);
     addToVerifyQueue(name, address, cargs);
     console.log(`Deployed contract ${name.green}: ${address.bold}`);
-    return { address, contract, cargs };
+    return contract;
 }
 
 async function deployTransformer(deployer, transformerName, ...cargs) {
@@ -117,14 +117,23 @@ async function verifySource(name, address, cargs=[]) {
     params.set('compilerversion', `v${compilerInput.settings.version}`);
     params.set('licenseType', 12);
     console.log(`Verifying source code for ${name.bold} on ${NETWORK || 'mainnet'} at ${address.green.bold}...`);
-    const r = await fetch(
-        `https://${apiNetworkPrefix}.etherscan.io/api`,
-        {
-            method: 'POST',
-            body: params,
-        },
-    );
-    const result = await r.json();
+    let result;
+    while (true) {
+        try {
+            const r = await fetch(
+                `https://${apiNetworkPrefix}.etherscan.io/api`,
+                {
+                    method: 'POST',
+                    body: params,
+                },
+            );
+            result = await r.json();
+        } catch (err) {
+            if (!/socket hang up/.test(err.message) && !/EAI_AGAIN/.test(err.message)) {
+                throw err;
+            }
+        }
+    }
     if (result.status != '1') {
         throw new Error(`Verification failed: ${result.message}: ${result.result}`);
     }
@@ -175,6 +184,7 @@ async function enterSenderContext(cb) {
     const ctx = {
         chainId: await ETH.getChainId(),
         sender: SENDER,
+        sendOpts: SEND_OPTS,
     };
     await cb(ctx);
     const cost = new BigNumber(startingBalance).minus(await ETH.getBalance(SENDER));

@@ -11,7 +11,6 @@ const {
     enterSenderContext,
     ETH,
     NULL_ADDRESS,
-    SEND_OPTS,
     SIMULATED,
     ADDRESSES_BY_CHAIN,
     verifyQueuedSources,
@@ -22,16 +21,16 @@ const DEPRECATED_FNS = [
 ];
 
 (async () => {
-    await enterSenderContext(async ({chainId}) => {
+    await enterSenderContext(async ({chainId, sendOpts}) => {
         const chainAddresses = ADDRESSES_BY_CHAIN[chainId];
         // Deploy the Uniswap feature.
-        const { contract: uniswapFeature } = await deployEcosystemContract(
+        const uniswapFeature = await deployEcosystemContract(
             'zero-ex/UniswapFeature',
             chainAddresses.weth,
             chainAddresses.allowanceTarget,
         );
         // Deploy the MetaTransactions feature.
-        const { contract: mtxFeature } = await deployEcosystemContract(
+        const mtxFeature = await deployEcosystemContract(
             'zero-ex/MetaTransactionsFeature',
             chainAddresses.exchangeProxy,
         );
@@ -81,7 +80,7 @@ const DEPRECATED_FNS = [
         if (SIMULATED) {
             const signers = await governor.getOwners().call();
             // Migrate using unlocked accounts.
-            const callOpts = { ...SEND_OPTS, from: signers[0], key: undefined };
+            const callOpts = { ...sendOpts, from: signers[0], key: undefined };
             const submitCall = governor.submitTransaction(governor.address, 0, governorCallData);
             const txId = await submitCall.call(callOpts);
             await submitCall.send(callOpts);
