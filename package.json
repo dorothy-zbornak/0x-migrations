@@ -9,7 +9,7 @@
         "ethereumjs-util": "^7.0.7",
         "flex-contract": "^2.2.4",
         "flex-ether": "^1.7.2",
-        "lodash": "^4.17.15",
+        "lodash": "^4.17.21",
         "node-fetch": "^2.6.1",
         "prompt": "^1.0.0"
     }
